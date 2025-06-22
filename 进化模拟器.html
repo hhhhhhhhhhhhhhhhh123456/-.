@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RNN生物模拟 - 清爽版</title>
+    <meta charset="UTF-8">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; /* 使用通用安全字体 */
+            margin: 0; 
+            padding: 20px;
+            background: #f0f8ff;
+            color: #333;
+            overflow: hidden;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-height: 90vh;
+        }
+        .simulation-area {
+            position: relative;
+            border: 1px solid #3498db;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #eef8ff;
+        }
+        canvas {
+            display: block;
+        }
+        .controls {
+            width: 300px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            overflow-y: auto;
+            max-height: 85vh;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .control-group h3 {
+            margin-top: 0;
+            color: #2980b9;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+        }
+        .control-group h3::before {
+            content: "▶";
+            margin-right: 8px;
+            font-size: 12px;
+            color: #3498db;
+        }
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .control-row label {
+            font-size: 14px;
+            color: #555;
+            flex: 1;
+        }
+        .control-row input[type="number"] {
+            width: 70px;
+            padding: 5px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: right;
+        }
+        .control-row input[type="range"] {
+            flex: 1;
+            margin: 0 10px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            margin: 3px;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        button.active {
+            background: #e74c3c;
+        }
+        button.toggle {
+            background: #2ecc71;
+        }
+        button.toggle.active {
+            background: #e74c3c;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-weight: bold;
+            font-size: 18px;
+            color: #2980b9;
+        }
+        .chart-container {
+            height: 150px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 10px;
+            background: white;
+        }
+        .info-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-width: 300px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .neural-net {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .neural-net h4 {
+            margin: 0 0 5px 0;
+            color: #2c3e50;
+        }
+        .performance {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .slider-value {
+            width: 40px;
+            text-align: right;
+            font-size: 13px;
+            color: #2980b9;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>RNN生物模拟 - 清爽视觉版</h1>
+    
+    <div class="container">
+        <div class="simulation-area">
+            <canvas id="world" width="1200" height="800"></canvas>
+            <div class="info-panel">
+                点击生物查看详情 | 空格键暂停/继续 | ↑↓调整速度
+            </div>
+            <div class="neural-net">
+                <h4>神经网络状态</h4>
+                <div id="neuralInfo">未选择生物</div>
+            </div>
+            <div class="performance">
+                <div>FPS: <span id="fpsCounter">0</span></div>
+                <div>帧时间: <span id="frameTime">0</span>ms</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="stats">
+                <div class="stat-item">
+                    <div>生物数量</div>
+                    <div class="stat-value" id="creatureCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>食物数量</div>
+                    <div class="stat-value" id="foodCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>世代</div>
+                    <div class="stat-value" id="generationCount">0</div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>模拟控制</h3>
+                <div class="control-row">
+                    <button id="pauseBtn">暂停</button>
+                    <button id="speedDown">减速</button>
+                    <button id="speedUp">加速</button>
+                    <button id="resetBtn">重置模拟</button>
+                </div>
+                <div class="control-row">
+                    <button id="clickToggle" class="toggle">点击生成:关</button>
+                    <button id="showVision" class="toggle">显示视觉:关</button>
+                    <button id="showTrails" class="toggle">显示轨迹:关</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>生物设置</h3>
+                <div class="control-row">
+                    <label>初始数量:</label>
+                    <input id="initialCount" type="number" value="10" min="1" max="50" step="1">
+                </div>
+                <div class="control-row">
+                    <label>基础代谢率:</label>
+                    <input id="baseMetabolism" type="number" value="0.05" min="0.01" max="0.2" step="0.01">
+                </div>
+                <div class="control-row">
+                    <label>速度能耗系数:</label>
+                    <input id="speedEnergyCost" type="number" value="0.1" min="0.01" max="0.5" step="0.01">
+                </div>
+                <div class="control-row">
+                    <label>加速度能耗系数:</label>
+                    <input id="accelerationCost" type="number" value="0.0001" min="0.00001" max="0.001" step="0.00001">
+                </div>
+                <div class="control-row">
+                    <label>最大速度:</label>
+                    <input id="maxSpeed" type="number" value="300" min="100" max="1000" step="10">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>繁殖设置</h3>
+                <div class="control-row">
+                    <label>繁殖能量阈值:</label>
+                    <input id="reproduceThreshold" type="number" value="150" min="50" max="300" step="10">
+                </div>
+                <div class="control-row">
+                    <label>繁殖能量消耗:</label>
+                    <input id="reproduceCost" type="number" value="80" min="20" max="150" step="5">
+                </div>
+                <div class="control-row">
+                    <label>变异概率:</label>
+                    <input id="mutateProb" type="number" value="0.5" min="0" max="1" step="0.01">
+                </div>
+                <div class="control-row">
+                    <label>初始变异幅度:</label>
+                    <input id="initMutateRange" type="number" value="0.2" min="0" max="1" step="0.05">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>感官设置</h3>
+                <div class="control-row">
+                    <label>视觉范围:</label>
+                    <input id="visionRange" type="number" value="200" min="50" max="500" step="10">
+                </div>
+                <div class="control-row">
+                    <label>视觉灵敏度:</label>
+                    <input id="visionSensitivity" type="number" value="0.8" min="0.1" max="2" step="0.1">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>环境设置</h3>
+                <div class="control-row">
+                    <label>食物间隔 (ms):</label>
+                    <input id="foodRate" type="number" value="150" min="50" max="1000" step="10">
+                </div>
+                <div class="control-row">
+                    <label>食物能量值:</label>
+                    <input id="foodEnergy" type="number" value="30" min="10" max="100" step="5">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>变异历史</h3>
+                <div class="chart-container">
+                    <canvas id="mutationChart" width="280" height="140"></canvas>
+                </div>
+            </div>
+            
+            <div id="creatureInfo" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: none;">
+                <h3>生物信息</h3>
+                <div id="selectedCreatureInfo"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+const chartCanvas = document.getElementById('mutationChart');
+const chartCtx = chartCanvas.getContext('2d');
+let clickEnabled = false;
+let showVision = false;
+let showTrails = false;
+let creatures = [];
+let foods = [];
+let trails = [];
+let lastFood = 0;
+let worldWidth = canvas.width;
+let worldHeight = canvas.height;
+let mutationHistory = [];
+let generationCount = 0;
+let selectedCreature = null;
+let isPaused = false;
+let simulationSpeed = 1;
+let lastFrameTime = 0;
+let fps = 0;
+let frameCount = 0;
+let lastFpsUpdate = 0;
+
+// 循环神经网络类
+class RNN {
+    constructor(inputSize, hiddenSize, outputSize, parent = null) {
+        this.inputSize = inputSize;
+        this.hiddenSize = hiddenSize;
+        this.outputSize = outputSize;
+        
+        // 初始化权重
+        if (parent) {
+            // 遗传父代的权重，并添加变异
+            const mutateRange = parseFloat(document.getElementById('initMutateRange').value);
+            this.Wxh = this.mutateMatrix(parent.Wxh, mutateRange);
+            this.Whh = this.mutateMatrix(parent.Whh, mutateRange);
+            this.Why = this.mutateMatrix(parent.Why, mutateRange);
+            this.bh = this.mutateVector(parent.bh, mutateRange);
+            this.by = this.mutateVector(parent.by, mutateRange);
+        } else {
+            // 随机初始化权重
+            this.Wxh = this.randomMatrix(hiddenSize, inputSize);
+            this.Whh = this.randomMatrix(hiddenSize, hiddenSize);
+            this.Why = this.randomMatrix(outputSize, hiddenSize);
+            this.bh = this.randomVector(hiddenSize);
+            this.by = this.randomVector(outputSize);
+        }
+        
+        // 隐藏状态初始化为0
+        this.hx = new Array(this.hiddenSize).fill(0);
+    }
+    
+    // 创建变异矩阵
+    mutateMatrix(matrix, range) {
+        return matrix.map(row => 
+            row.map(val => val + (Math.random() * 2 - 1) * range)
+        );
+    }
+    
+    // 创建变异向量
+    mutateVector(vector, range) {
+        return vector.map(val => val + (Math.random() * 2 - 1) * range);
+    }
+    
+    // 创建随机矩阵
+    randomMatrix(rows, cols) {
+        return Array(rows).fill().map(() => 
+            Array(cols).fill().map(() => Math.random() * 2 - 1)
+        );
+    }
+    
+    // 创建随机向量
+    randomVector(size) {
+        return Array(size).fill().map(() => Math.random() * 2 - 1);
+    }
+    
+    // 前向传播
+    forward(inputs, hx = null) {
+        // 如果没有提供隐藏状态，则使用上一次的
+        const currentHx = hx !== null ? hx : this.hx;
+        
+        // 计算新的隐藏状态
+        let newHx = new Array(this.hiddenSize).fill(0);
+        for (let i = 0; i < this.hiddenSize; i++) {
+            let sum = 0;
+            // 输入到隐藏的连接
+            for (let j = 0; j < this.inputSize; j++) {
+                sum += inputs[j] * this.Wxh[i][j];
+            }
+            // 隐藏到隐藏的连接
+            for (let j = 0; j < this.hiddenSize; j++) {
+                sum += currentHx[j] * this.Whh[i][j];
+            }
+            // 偏置
+            sum += this.bh[i];
+            // tanh激活
+            newHx[i] = Math.tanh(sum);
+        }
+        
+        // 计算输出
+        let outputs = new Array(this.outputSize).fill(0);
+        for (let i = 0; i < this.outputSize; i++) {
+            let sum = 0;
+            // 隐藏到输出的连接
+            for (let j = 0; j < this.hiddenSize; j++) {
+                sum += newHx[j] * this.Why[i][j];
+            }
+            // 偏置
+            sum += this.by[i];
+            // 输出使用tanh，保证在-1到1之间
+            outputs[i] = Math.tanh(sum);
+        }
+        
+        // 更新隐藏状态
+        this.hx = newHx;
+        
+        return { outputs, hx: newHx };
+    }
+    
+    // 复制网络
+    copy() {
+        const newRNN = new RNN(
+            this.inputSize, 
+            this.hiddenSize, 
+            this.outputSize,
+            { 
+                Wxh: this.Wxh, 
+                Whh: this.Whh, 
+                Why: this.Why, 
+                bh: this.bh, 
+                by: this.by 
+            }
+        );
+        // 复制当前隐藏状态
+        newRNN.hx = [...this.hx];
+        return newRNN;
+    }
+}
+
+// 生物类
+class Creature {
+    constructor(x, y, parent = null) {
+        this.x = x || Math.random() * worldWidth;
+        this.y = y || Math.random() * worldHeight;
+        this.vx = 0; // x方向速度
+        this.vy = 0; // y方向速度
+        this.maxSpeed = parseFloat(document.getElementById('maxSpeed').value); // 最大速度
+        this.energy = 100; // 初始能量
+        this.age = 0; // 年龄
+        this.brain = new RNN(4, 8, 2, parent?.brain); // 输入大小4，隐藏层8，输出大小2
+        this.size = 6 + Math.random() * 4; // 生物大小
+        this.color = parent ? `hsl(${Math.random()*40+10}, 100%, 50%)` : `hsl(${Math.random()*40+10}, 100%, 50%)`; // 绿色系
+        this.lastDirection = Math.random() * Math.PI * 2; // 上一次移动方向
+        this.directionChange = 0; // 方向变化率
+        this.fitness = 0; // 适应度，用于选择
+        this.mutationRange = parseFloat(document.getElementById('initMutateRange').value); // 变异幅度
+        this.visionRange = parseFloat(document.getElementById('visionRange').value); // 视觉范围
+        this.visionSensitivity = parseFloat(document.getElementById('visionSensitivity').value); // 视觉灵敏度
+        this.visionInput = 0; // 视觉输入值
+        this.speedEnergyCost = parseFloat(document.getElementById('speedEnergyCost').value); // 速度能耗系数
+        this.accelerationCost = parseFloat(document.getElementById('accelerationCost').value); // 加速度能耗系数
+        this.baseMetabolism = parseFloat(document.getElementById('baseMetabolism').value); // 基础代谢率
+        this.reproduceThreshold = parseFloat(document.getElementById('reproduceThreshold').value); // 繁殖能量阈值
+        this.reproduceCost = parseFloat(document.getElementById('reproduceCost').value); // 繁殖能量消耗
+        this.foodEnergy = parseFloat(document.getElementById('foodEnergy').value); // 食物能量值
+
+        // 加速度相关属性
+        this.prevSpeed = 0;       // 记录上一帧的速度
+        this.deltaTime = 1/60;    // 时间步长（假设60FPS）
+    }
+    
+    // 计算视觉输入 - 清爽高效版
+    calculateVision() {
+        let visionValue = 0;
+        
+        for (const food of foods) {
+            const dx = food.x - this.x;
+            const dy = food.y - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            // 超出视觉范围跳过
+            if (dist > this.visionRange) continue;
+            
+            // 计算食物相对于生物朝向的角度
+            const foodAngle = Math.atan2(dy, dx);
+            const angleDiff = Math.abs(this.normalizeAngle(foodAngle - this.lastDirection));
+            
+            // 角度因子：正前方为1，侧面为0.5，后方为0.1
+            const angleFactor = Math.max(0, 1 - (angleDiff / Math.PI));
+            
+            // 距离因子：越近值越大
+            const distFactor = 1 - (dist / this.visionRange);
+            
+            // 综合感知强度（考虑灵敏度）
+            const perception = angleFactor * distFactor * this.visionSensitivity;
+            
+            // 只保留最强的感知信号
+            if (perception > visionValue) {
+                visionValue = perception;
+            }
+        }
+        
+        return Math.min(1, visionValue);
+    }
+    
+    // 角度标准化
+    normalizeAngle(angle) {
+        return angle - Math.PI * 2 * Math.floor((angle + Math.PI) / (Math.PI * 2));
+    }
+    
+    // 更新生物状态
+    update() {
+        this.age++;
+        
+        // 更新参数
+        this.maxSpeed = parseFloat(document.getElementById('maxSpeed').value);
+        this.speedEnergyCost = parseFloat(document.getElementById('speedEnergyCost').value);
+        this.accelerationCost = parseFloat(document.getElementById('accelerationCost').value);
+        this.baseMetabolism = parseFloat(document.getElementById('baseMetabolism').value);
+        this.visionRange = parseFloat(document.getElementById('visionRange').value);
+        this.visionSensitivity = parseFloat(document.getElementById('visionSensitivity').value);
+        this.reproduceThreshold = parseFloat(document.getElementById('reproduceThreshold').value);
+        this.reproduceCost = parseFloat(document.getElementById('reproduceCost').value);
+        this.foodEnergy = parseFloat(document.getElementById('foodEnergy').value);
+        
+        // 计算视觉输入
+        this.visionInput = this.calculateVision();
+        
+        // 计算当前速度
+        const currentSpeed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+        
+        // 计算加速度
+        const acceleration = (currentSpeed - this.prevSpeed) / this.deltaTime;
+        
+        // 计算能量消耗
+        const speedLossFromAccel = acceleration ** 2 * this.accelerationCost;
+        const speedEnergyLoss = currentSpeed * this.speedEnergyCost;
+        this.energy -= (this.baseMetabolism + speedLossFromAccel + speedEnergyLoss);
+        
+        // 更新上一帧速度
+        this.prevSpeed = currentSpeed;
+        
+        // 准备输入数据: 视觉输入、自身速度、能量
+        const inputs = [
+            this.visionInput,          // 综合视觉感知 (0-1)
+            this.vx / this.maxSpeed,   // x方向速度归一化
+            this.vy / this.maxSpeed,   // y方向速度归一化
+            this.energy / 2000         // 能量归一化
+        ];
+        
+        // 通过RNN处理输入并得到输出
+        const { outputs } = this.brain.forward(inputs, this.brain.hx);
+        
+        // 输出控制移动
+        const turn = outputs[0] * Math.PI; // 转向角度 (-π到π)
+        const thrust = (outputs[1] + 1) / 2; // 推力 (0到1)
+        
+        // 更新方向
+        this.lastDirection += turn;
+        
+        // 根据推力更新速度
+        this.vx += Math.cos(this.lastDirection) * thrust * 0.5;
+        this.vy += Math.sin(this.lastDirection) * thrust * 0.5;
+        
+        // 限制最大速度
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (speed > this.maxSpeed) {
+            this.vx = (this.vx / speed) * this.maxSpeed;
+            this.vy = (this.vy / speed) * this.maxSpeed;
+        }
+        
+        // 更新位置
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        // 边界处理 - 碰到边界反弹
+        if (this.x < this.size) {
+            this.x = this.size;
+            this.vx *= -0.5;
+        } else if (this.x > worldWidth - this.size) {
+            this.x = worldWidth - this.size;
+            this.vx *= -0.5;
+        }
+        
+        if (this.y < this.size) {
+            this.y = this.size;
+            this.vy *= -0.5;
+        } else if (this.y > worldHeight - this.size) {
+            this.y = worldHeight - this.size;
+            this.vy *= -0.5;
+        }
+        
+        // 检测食物
+        let nearestFood = null;
+        let minDist = Number.MAX_VALUE;
+        
+        for (let food of foods) {
+            const dx = food.x - this.x;
+            const dy = food.y - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (dist < minDist) {
+                minDist = dist;
+                nearestFood = food;
+            }
+        }
+        
+        // 如果足够接近食物，则吃掉它
+        if (nearestFood && minDist < this.size + 5) {
+            this.energy += this.foodEnergy;
+            foods = foods.filter(f => f !== nearestFood);
+        }
+        
+        // 根据能量调整颜色
+        const energyRatio = this.energy / 2000;
+        this.color = `hsl(120, ${100 - energyRatio * 50}%, ${50 + energyRatio * 30}%)`;
+        
+        // 繁殖条件
+        if (this.energy > this.reproduceThreshold && outputs[0] > 0.6 && Math.random() < 0.005) {
+            this.reproduce();
+        }
+        
+        return this.energy > 0; // 如果能量耗尽则死亡
+    }
+    
+    // 繁殖产生后代
+    reproduce() {
+        // 消耗能量
+        this.energy -= this.reproduceCost;
+        
+        // 创建后代
+        const child = new Creature(this.x, this.y, this);
+        
+        // 引入变异
+        if (Math.random() < parseFloat(document.getElementById('mutateProb').value)) {
+            this.mutateBrain(child.brain);
+            child.mutationRange = this.mutationRange * (1 + Math.random() * 0.1);
+        }
+        
+        // 添加到生物列表
+        creatures.push(child);
+    }
+    
+    // 突变大脑
+    mutateBrain(brain) {
+        // 变异权重矩阵
+        for (let i = 0; i < brain.Wxh.length; i++) {
+            for (let j = 0; j < brain.Wxh[i].length; j++) {
+                if (Math.random() < this.mutationRange) {
+                    brain.Wxh[i][j] += (Math.random() * 2 - 1) * this.mutationRange;
+                }
+            }
+        }
+        
+        for (let i = 0; i < brain.Whh.length; i++) {
+            for (let j = 0; j < brain.Whh[i].length; j++) {
+                if (Math.random() < this.mutationRange) {
+                    brain.Whh[i][j] += (Math.random() * 2 - 1) * this.mutationRange;
+                }
+            }
+        }
+        
+        for (let i = 0; i < brain.Why.length; i++) {
+            for (let j = 0; j < brain.Why[i].length; j++) {
+                if (Math.random() < this.mutationRange) {
+                    brain.Why[i][j] += (Math.random() * 2 - 1) * this.mutationRange;
+                }
+            }
+        }
+        
+        // 突变偏置
+        for (let i = 0; i < brain.bh.length; i++) {
+            if (Math.random() < this.mutationRange) {
+                brain.bh[i] += (Math.random() * 2 - 1) * this.mutationRange;
+            }
+        }
+        
+        for (let i = 0; i < brain.by.length; i++) {
+            if (Math.random() < this.mutationRange) {
+                brain.by[i] += (Math.random() * 2 - 1) * this.mutationRange;
+            }
+        }
+    }
+    
+    // 绘制生物
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(Math.atan2(this.vy, this.vx));
+        
+        // 绘制身体
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size/1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 绘制眼睛（在前方）
+        ctx.fillStyle = 'white';
+        const eyeDistance = this.size * 0.6;
+        ctx.beginPath();
+        ctx.arc(eyeDistance, -this.size/4, this.size/4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 眼睛朝向
+        ctx.fillStyle = 'black';
+        const pupilDistance = this.size * 0.6 + this.size/8 * Math.cos(this.lastDirection);
+        const pupilY = -this.size/4 + this.size/8 * Math.sin(this.lastDirection);
+        ctx.beginPath();
+        ctx.arc(pupilDistance, pupilY, this.size/8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 绘制视觉范围
+        if (showVision) {
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.visionRange, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    }
+}
+
+// 检查位置是否与现有生物重叠
+function checkOverlap(x, y, size, creatures) {
+    const minDistance = size * 1.5;
+    for (let creature of creatures) {
+        const dx = creature.x - x;
+        const dy = creature.y - y;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        if (distance < minDistance) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 寻找合适的出生位置
+function findSpawnPosition(size, creatures) {
+    let x, y;
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    do {
+        x = Math.random() * (worldWidth - size * 2) + size;
+        y = Math.random() * (worldHeight - size * 2) + size;
+        attempts++;
+        
+        if (attempts > maxAttempts) {
+            break;
+        }
+    } while (checkOverlap(x, y, size, creatures));
+    
+    return { x, y };
+}
+
+// 初始化
+function init() {
+    creatures = [];
+    foods = [];
+    trails = [];
+    mutationHistory = [];
+    generationCount = 0;
+    selectedCreature = null;
+    
+    const initialCount = parseInt(document.getElementById('initialCount').value);
+    for (let i = 0; i < initialCount; i++) {
+        const { x, y } = findSpawnPosition(10, creatures);
+        creatures.push(new Creature(x, y));
+    }
+    
+    updateStats();
+    
+    // 清空变异历史图表
+    chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+    
+    // 隐藏生物信息面板
+    document.getElementById('creatureInfo').style.display = 'none';
+    document.getElementById('neuralInfo').textContent = '未选择生物';
+}
+
+// 更新统计信息
+function updateStats() {
+    document.getElementById('creatureCount').textContent = creatures.length;
+    document.getElementById('foodCount').textContent = foods.length;
+    document.getElementById('generationCount').textContent = generationCount;
+}
+
+// 生成食物
+function generateFood() {
+    const now = Date.now();
+    const interval = parseInt(document.getElementById('foodRate').value);
+    
+    if (now - lastFood > interval) {
+        const { x, y } = findSpawnPosition(10, creatures);
+        foods.push({
+            x: x,
+            y: y,
+            size: 5
+        });
+        lastFood = now;
+    }
+}
+
+// 绘制世界
+function drawWorld() {
+    // 清空画布
+    ctx.fillStyle = '#eef8ff';
+    ctx.fillRect(0, 0, worldWidth, worldHeight);
+    
+    // 绘制网格背景
+    ctx.strokeStyle = '#ddf0ff';
+    ctx.lineWidth = 0.5;
+    
+    for (let x = 0; x < worldWidth; x += 20) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, worldHeight);
+        ctx.stroke();
+    }
+    
+    for (let y = 0; y < worldHeight; y += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(worldWidth, y);
+        ctx.stroke();
+    }
+    
+    // 绘制轨迹
+    if (showTrails) {
+        for (let i = 0; i < trails.length; i++) {
+            const trail = trails[i];
+            ctx.beginPath();
+            ctx.moveTo(trail.x1, trail.y1);
+            ctx.lineTo(trail.x2, trail.y2);
+            ctx.strokeStyle = `rgba(100, 200, 100, ${trail.alpha})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            // 更新透明度
+            trail.alpha -= 0.005;
+            if (trail.alpha <= 0) {
+                trails.splice(i, 1);
+                i--;
+            }
+        }
+    }
+    
+    // 绘制食物
+    ctx.fillStyle = '#ff9900';
+    for (let food of foods) {
+        ctx.beginPath();
+        ctx.arc(food.x, food.y, food.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 绘制食物光晕
+        const grd = ctx.createRadialGradient(food.x, food.y, 0, food.x, food.y, food.size*3);
+        grd.addColorStop(0, 'rgba(255, 153, 0, 0.3)');
+        grd.addColorStop(1, 'rgba(255, 153, 0, 0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(food.x, food.y, food.size*3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // 绘制生物
+    for (let creature of creatures) {
+        creature.draw();
+        
+        // 记录轨迹
+        if (showTrails) {
+            trails.push({
+                x1: creature.x,
+                y1: creature.y,
+                x2: creature.x + creature.vx * 0.5,
+                y2: creature.y + creature.vy * 0.5,
+                alpha: 0.7
+            });
+        }
+    }
+    
+    // 绘制选中的生物
+    if (selectedCreature) {
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(selectedCreature.x, selectedCreature.y, selectedCreature.size + 5, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
+// 更新变异历史图表
+function updateMutationChart() {
+    if (mutationHistory.length > 100) {
+        mutationHistory = mutationHistory.slice(-100);
+    }
+    
+    chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+    
+    // 绘制背景网格
+    chartCtx.strokeStyle = '#eeeeee';
+    chartCtx.lineWidth = 0.5;
+    
+    // 水平线
+    for (let i = 0; i <= 5; i++) {
+        const y = chartCanvas.height - i * (chartCanvas.height / 5);
+        chartCtx.beginPath();
+        chartCtx.moveTo(0, y);
+        chartCtx.lineTo(chartCanvas.width, y);
+        chartCtx.stroke();
+    }
+    
+    // 垂直线
+    for (let i = 0; i <= 10; i++) {
+        const x = i * (chartCanvas.width / 10);
+        chartCtx.beginPath();
+        chartCtx.moveTo(x, 0);
+        chartCtx.lineTo(x, chartCanvas.height);
+        chartCtx.stroke();
+    }
+    
+    if (mutationHistory.length === 0) return;
+    
+    // 计算统计信息
+    const avgMutations = mutationHistory.reduce((sum, val) => sum + val, 0) / mutationHistory.length;
+    const maxMutations = Math.max(...mutationHistory);
+    
+    // 绘制平均线
+    chartCtx.strokeStyle = 'rgba(0, 128, 255, 0.5)';
+    chartCtx.lineWidth = 2;
+    chartCtx.beginPath();
+    chartCtx.moveTo(0, chartCanvas.height - (avgMutations / 2) * (chartCanvas.height / 5));
+    for (let i = 1; i < chartCanvas.width; i++) {
+        chartCtx.lineTo(i, chartCanvas.height - (avgMutations / 2) * (chartCanvas.height / 5));
+    }
+    chartCtx.stroke();
+    
+    // 绘制最大值线
+    chartCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+    chartCtx.beginPath();
+    chartCtx.moveTo(0, chartCanvas.height - (maxMutations / 2) * (chartCanvas.height / 5));
+    for (let i = 1; i < chartCanvas.width; i++) {
+        chartCtx.lineTo(i, chartCanvas.height - (maxMutations / 2) * (chartCanvas.height / 5));
+    }
+    chartCtx.stroke();
+    
+    // 绘制当前变异值
+    const currentMutation = mutationHistory[mutationHistory.length - 1] || 0;
+    chartCtx.fillStyle = '#2ecc71';
+    chartCtx.beginPath();
+    chartCtx.arc(chartCanvas.width, chartCanvas.height - (currentMutation / 2) * (chartCanvas.height / 5), 5, 0, Math.PI * 2);
+    chartCtx.fill();
+    
+    // 绘制突变历史
+    if (mutationHistory.length > 1) {
+        chartCtx.strokeStyle = '#3498db';
+        chartCtx.lineWidth = 2;
+        chartCtx.beginPath();
+        
+        const xScale = chartCanvas.width / Math.max(1, mutationHistory.length - 1);
+        const yScale = chartCanvas.height / 10;
+        
+        for (let i = 0; i < mutationHistory.length - 1; i++) {
+            const x1 = i * xScale;
+            const y1 = chartCanvas.height - (mutationHistory[i] / 2) * yScale;
+            const x2 = (i + 1) * xScale;
+            const y2 = chartCanvas.height - (mutationHistory[i + 1] / 2) * yScale;
+            
+            chartCtx.moveTo(x1, y1);
+            chartCtx.lineTo(x2, y2);
+        }
+        chartCtx.stroke();
+    }
+    
+    // 绘制标题
+    chartCtx.fillStyle = '#333';
+    chartCtx.font = '12px Arial';
+    chartCtx.fillText('平均变异幅度', 5, 15);
+}
+
+// 更新世界状态
+function updateWorld() {
+    // 生成食物
+    generateFood();
+    
+    // 更新生物
+    const survivingCreatures = [];
+    for (let creature of creatures) {
+        if (creature.update()) {
+            survivingCreatures.push(creature);
+        }
+    }
+    
+    // 更新生物列表
+    creatures = survivingCreatures;
+    
+    // 记录变异幅度
+    if (creatures.length > 0 && generationCount % 1 === 0) {
+        const avgMutation = creatures.reduce((sum, c) => sum + c.mutationRange, 0) / creatures.length;
+        mutationHistory.push(avgMutation);
+    }
+    
+    // 每10代更新一次图表
+    if (generationCount % 10 === 0) {
+        updateMutationChart();
+    }
+    
+    // 更新计数器
+    updateStats();
+    
+    generationCount++;
+}
+
+// 更新选中的生物信息
+function updateSelectedCreatureInfo() {
+    if (!selectedCreature) return;
+    
+    const infoDiv = document.getElementById('selectedCreatureInfo');
+    infoDiv.innerHTML = `
+        <div>能量: ${selectedCreature.energy.toFixed(1)}</div>
+        <div>年龄: ${selectedCreature.age}</div>
+        <div>大小: ${selectedCreature.size.toFixed(1)}</div>
+        <div>速度: ${Math.sqrt(selectedCreature.vx*selectedCreature.vx + selectedCreature.vy*selectedCreature.vy).toFixed(1)}</div>
+        <div>视觉输入: ${selectedCreature.visionInput.toFixed(3)}</div>
+        <div>变异幅度: ${selectedCreature.mutationRange.toFixed(3)}</div>
+    `;
+    
+    // 更新神经网络信息
+    const neuralInfo = document.getElementById('neuralInfo');
+    neuralInfo.innerHTML = `
+        <div>输入节点: ${selectedCreature.brain.inputSize}</div>
+        <div>隐藏节点: ${selectedCreature.brain.hiddenSize}</div>
+        <div>输出节点: ${selectedCreature.brain.outputSize}</div>
+        <div>隐藏状态: ${selectedCreature.brain.hx.map(v => v.toFixed(2)).join(', ')}</div>
+    `;
+}
+
+// 计算FPS
+function updateFPS() {
+    const now = performance.now();
+    const delta = now - lastFrameTime;
+    lastFrameTime = now;
+    
+    if (now - lastFpsUpdate > 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFpsUpdate = now;
+        document.getElementById('fpsCounter').textContent = fps;
+    } else {
+        frameCount++;
+    }
+    
+    document.getElementById('frameTime').textContent = delta.toFixed(1);
+}
+
+// 主循环
+function gameLoop() {
+    updateFPS();
+    
+    if (!isPaused) {
+        for (let i = 0; i < simulationSpeed; i++) {
+            updateWorld();
+        }
+    }
+    
+    drawWorld();
+    
+    if (selectedCreature) {
+        updateSelectedCreatureInfo();
+    }
+    
+    requestAnimationFrame(gameLoop);
+}
+
+// 点击生成食物或选择生物
+canvas.addEventListener('click', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    if (clickEnabled) {
+        foods.push({ x, y, size: 5 });
+        return;
+    }
+    
+    // 检查是否点击了生物
+    for (let i = creatures.length - 1; i >= 0; i--) {
+        const creature = creatures[i];
+        const dx = creature.x - x;
+        const dy = creature.y - y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist < creature.size + 5) {
+            selectedCreature = creature;
+            document.getElementById('creatureInfo').style.display = 'block';
+            updateSelectedCreatureInfo();
+            return;
+        }
+    }
+    
+    // 点击空白处取消选择
+    selectedCreature = null;
+    document.getElementById('creatureInfo').style.display = 'none';
+    document.getElementById('neuralInfo').textContent = '未选择生物';
+});
+
+// 事件监听
+document.getElementById('clickToggle').addEventListener('click', function() {
+    clickEnabled = !clickEnabled;
+    this.textContent = `点击生成:${clickEnabled ? '开' : '关'}`;
+    this.classList.toggle('active', clickEnabled);
+});
+
+document.getElementById('showVision').addEventListener('click', function() {
+    showVision = !showVision;
+    this.textContent = `显示视觉:${showVision ? '开' : '关'}`;
+    this.classList.toggle('active', showVision);
+});
+
+document.getElementById('showTrails').addEventListener('click', function() {
+    showTrails = !showTrails;
+    this.textContent = `显示轨迹:${showTrails ? '开' : '关'}`;
+    this.classList.toggle('active', showTrails);
+    if (!showTrails) trails = [];
+});
+
+document.getElementById('pauseBtn').addEventListener('click', function() {
+    isPaused = !isPaused;
+    this.textContent = isPaused ? '继续' : '暂停';
+    this.classList.toggle('active', isPaused);
+});
+
+document.getElementById('speedUp').addEventListener('click', function() {
+    simulationSpeed = Math.min(10, simulationSpeed + 1);
+});
+
+document.getElementById('speedDown').addEventListener('click', function() {
+    simulationSpeed = Math.max(1, simulationSpeed - 1);
+});
+
+document.getElementById('resetBtn').addEventListener('click', init);
+
+// 键盘控制
+document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space') {
+        isPaused = !isPaused;
+        document.getElementById('pauseBtn').textContent = isPaused ? '继续' : '暂停';
+        document.getElementById('pauseBtn').classList.toggle('active', isPaused);
+        e.preventDefault();
+    } else if (e.code === 'ArrowUp') {
+        simulationSpeed = Math.min(10, simulationSpeed + 1);
+    } else if (e.code === 'ArrowDown') {
+        simulationSpeed = Math.max(1, simulationSpeed - 1);
+    }
+});
+
+// 初始化并开始游戏
+init();
+gameLoop();
+</script>
+</body>
+</html>
