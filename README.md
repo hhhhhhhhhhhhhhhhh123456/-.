@@ -1,2 +1,2 @@
-# -.使用这个代码hhhhhhhhhhhhhhhhh123456不负任何负面责任，是不是负面责任由hhhhhhhhhhhhhhhhh123456说了算。
+# -.使用这个代码hhhhhhhhhhhhhhhhh123456不负任何责任
 这个代码由hhhhhhhhhhhhhhhhh123456引导AI生成。
